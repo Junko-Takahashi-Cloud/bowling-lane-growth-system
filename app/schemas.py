@@ -188,3 +188,22 @@ class MemberDashboardResponse(BaseModel):
     spare_rate: float
     pin10_leave_rate: float  # 10番ピン残り率（10番ピン克服率の裏返し指標）
     recent_games: list[RecentGameSummary]
+
+
+# --- 第三弾拡張④: 初心者教室修了記録 ---
+# 設計メモ: docs/phase3_extension_class_completion.md 参照。
+# 出席回数・指導内容・適性評価は持たず、「修了した」という事実のみを扱う。
+
+class ClassCompletionCreate(BaseModel):
+    user_id: int
+    external_course_id: int  # 第三弾ClassCourse.course_idの値（FKではない参照）
+    completed_at: Optional[datetime] = None
+
+
+class ClassCompletionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    external_course_id: int
+    completed_at: datetime
+    recorded_by_staff_id: Optional[int] = None

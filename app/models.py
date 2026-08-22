@@ -153,3 +153,25 @@ class Reservation(Base):
     lane_number = Column(Integer, nullable=True)
     reserved_date = Column(DateTime, nullable=True)
     status = Column(String(20), default="confirmed")
+
+
+class ClassCompletionRecord(Base):
+    """初心者教室の修了記録（第三弾拡張④、設計メモ: docs/phase3_extension_class_completion.md）。
+
+    第三弾（教室運営）と第四弾（会員データ）は別アプリ・別DBのため、
+    external_course_idは第三弾ClassCourse.course_idの値を単なる参照値として持つのみで、
+    外部キー制約は張らない。session_number・開催日等の可変情報は一切コピーしない。
+
+    第四弾で管理するのは「初心者教室を修了し、一般ボウラーとして利用可能になった」
+    という事実のみ。出席回数・各回の指導内容・コーチによる適性評価は持たない
+    （初心者教室は競技者適性を判定する場ではないため）。"""
+    __tablename__ = "class_completion_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    external_course_id = Column(Integer, nullable=False)  # 第三弾ClassCourse.course_idの値（FKではない）
+    completed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    recorded_by_staff_id = Column(Integer, ForeignKey("staffs.staff_id", ondelete="SET NULL"), nullable=True)
+
+    user = relationship("User")
+    recorded_by = relationship("Staff")

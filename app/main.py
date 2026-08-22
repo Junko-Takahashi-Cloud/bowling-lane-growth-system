@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.database import Base, engine, SessionLocal, get_db
 from app.models import Staff, User, BowlingSession, SessionPlayer, Gear, MaintenanceLog
 from app.utils.staff_auth import hash_pin, get_current_staff
-from app.routers import staff, users, gears, sessions, scores, dashboard
+from app.routers import staff, users, gears, sessions, scores, dashboard, class_completion
 
 logger = logging.getLogger("uvicorn")
 
@@ -58,6 +58,7 @@ app.include_router(gears.router)
 app.include_router(sessions.router)
 app.include_router(scores.router)
 app.include_router(dashboard.router)
+app.include_router(class_completion.router)
 
 
 @app.post("/api/v1/checkin")
