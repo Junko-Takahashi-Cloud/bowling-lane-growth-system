@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -52,8 +53,6 @@ class ReservationOut(BaseModel):
     status: str
 
 
-# --- ③会員管理 ---
-
 class UserCreate(BaseModel):
     member_code: str
     name: str
@@ -71,7 +70,7 @@ class UserOut(BaseModel):
 
 
 class UserLogin(BaseModel):
-    identifier: str  # 会員コード または 電話番号
+    identifier: str
     pin_code: str
 
 
@@ -91,19 +90,15 @@ class UserPinUpdate(BaseModel):
     new_pin: str
 
 
-# --- ②マイギア管理 ---
-
 class GearCreate(BaseModel):
-    """スタッフ代理登録用（対象会員をuser_idで指定）"""
     user_id: int
-    gear_type: str  # 'ball' or 'shoes'
+    gear_type: str
     name: str
     weight_or_size: Optional[str] = None
 
 
 class GearSelfCreate(BaseModel):
-    """会員セルフ登録用（対象会員はトークンの本人で固定するため、user_idは受け取らない）"""
-    gear_type: str  # 'ball' or 'shoes'
+    gear_type: str
     name: str
     weight_or_size: Optional[str] = None
 
@@ -117,9 +112,27 @@ class GearOut(BaseModel):
     weight_or_size: Optional[str] = None
     total_games: int
     status: str
+    maintenance_reminder_disabled: bool = False
+    maintenance_reminder_snoozed_stage: Optional[int] = None
 
 
-# --- ①複数人セッション ---
+class MaintenanceReminderOut(BaseModel):
+    gear_id: int
+    gear_name: str
+    games_since_maintenance: int
+    reminder_status: str
+    reminder_message: Optional[str] = None
+    reminder_visible: bool
+    reminder_disabled: bool
+    snoozed_stage: Optional[int] = None
+
+
+class MaintenanceReminderActionOut(BaseModel):
+    gear_id: int
+    reminder_disabled: bool
+    snoozed_stage: Optional[int] = None
+    message: str
+
 
 class SessionPlayerAdd(BaseModel):
     member_code: Optional[str] = None
@@ -135,8 +148,6 @@ class SessionPlayerOut(BaseModel):
     player_order: int
 
 
-# --- ⑤Frame/Shot 実データ投入（④Gear紐付けを含む） ---
-
 class ShotInput(BaseModel):
     pins_knocked: int
     remaining_pins: Optional[str] = None
@@ -148,7 +159,7 @@ class FrameInput(BaseModel):
 
 
 class GameImportInput(BaseModel):
-    player_id: int  # SessionPlayer.id（夜間CSV照合はレーン+時間帯からplayer_idを特定した後の想定）
+    player_id: int
     gear_id: Optional[int] = None
     game_number: int
     frames: list[FrameInput]
@@ -169,8 +180,6 @@ class ScoreImportResponse(BaseModel):
     message: str
 
 
-# --- ⑥成長ダッシュボード ---
-
 class RecentGameSummary(BaseModel):
     game_id: int
     created_at: datetime
@@ -186,24 +195,5 @@ class MemberDashboardResponse(BaseModel):
     low_score: int
     strike_rate: float
     spare_rate: float
-    pin10_leave_rate: float  # 10番ピン残り率（10番ピン克服率の裏返し指標）
+    pin10_leave_rate: float
     recent_games: list[RecentGameSummary]
-
-
-# --- 第三弾拡張④: 初心者教室修了記録 ---
-# 設計メモ: docs/phase3_extension_class_completion.md 参照。
-# 出席回数・指導内容・適性評価は持たず、「修了した」という事実のみを扱う。
-
-class ClassCompletionCreate(BaseModel):
-    user_id: int
-    external_course_id: int  # 第三弾ClassCourse.course_idの値（FKではない参照）
-    completed_at: Optional[datetime] = None
-
-
-class ClassCompletionOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    user_id: int
-    external_course_id: int
-    completed_at: datetime
-    recorded_by_staff_id: Optional[int] = None
