@@ -197,3 +197,57 @@ class MemberDashboardResponse(BaseModel):
     spare_rate: float
     pin10_leave_rate: float
     recent_games: list[RecentGameSummary]
+
+
+class LaneSettingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    total_lanes: int
+
+
+class LaneSettingsUpdate(BaseModel):
+    total_lanes: int
+
+
+class LaneOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    lane_number: int
+    status: str
+    purpose: str
+
+
+class LaneStatusUpdate(BaseModel):
+    status: str
+
+
+class LanePurposeUpdate(BaseModel):
+    purpose: str
+
+
+class BadgeOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    badge_code: str
+    achieved_at: datetime
+
+
+class BadgeEvaluateResponse(BaseModel):
+    newly_achieved: list[BadgeOut]
+    message: str
+
+
+class ClassCompletionCreate(BaseModel):
+    user_id: int
+    external_course_id: int
+    completed_at: Optional[datetime] = None
+
+
+class ClassCompletionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    external_course_id: int
+    completed_at: datetime
+    recorded_by_staff_id: int

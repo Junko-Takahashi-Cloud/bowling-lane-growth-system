@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -54,6 +54,15 @@ class Gear(Base):
     user = relationship("User", back_populates="gears")
     maintenance_logs = relationship("MaintenanceLog", back_populates="gear")
     games = relationship("Game", back_populates="gear")
+
+    @property
+    def games_since_maintenance(self) -> int:
+        """直近のメンテナンス実施時からの投球数。
+        メンテナンス記録がなければ、ギア登録からの総投球数をそのまま使う。"""
+        if not self.maintenance_logs:
+            return self.total_games
+        last_log = max(self.maintenance_logs, key=lambda log: log.performed_at)
+        return self.total_games - last_log.games_at_maintenance
 
 
 class MaintenanceLog(Base):
@@ -131,3 +140,63 @@ class Reservation(Base):
     lane_number = Column(Integer, nullable=True)
     reserved_date = Column(DateTime, nullable=True)
     status = Column(String(20), default="confirmed")
+
+
+class LaneSettings(Base):
+    """店舗全体のレーン設定（第三弾拡張③）。1行のみ運用するシングルトン的テーブル。
+    total_lanesを変更するだけで、6レーン等への拡張に対応できるようにする。"""
+
+    __tablename__ = "lane_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    total_lanes = Column(Integer, nullable=False, default=4)
+
+
+class Lane(Base):
+    """レーン個別の状態管理（第三弾拡張③）。
+    lane_numberは1〜LaneSettings.total_lanesの範囲を想定する（アプリ側で整合を保つ。
+    DB制約としては強制しない）。"""
+
+    __tablename__ = "lanes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    lane_number = Column(Integer, nullable=False, unique=True)
+    status = Column(String(20), nullable=False, default="available")  # 'available' / 'maintenance' / 'broken'
+    purpose = Column(String(20), nullable=False, default="general")  # 'general' / 'class' / 'competitor'
+
+
+class AchievementBadge(Base):
+    """会員が達成したバッジ・称号の記録（第三弾拡張③）。
+    badge_codeの判定ロジックはapp/services/badge_criteria.pyにコード側で定義し、
+    ここでは「付与された結果」のみを記録する。"""
+
+    __tablename__ = "achievement_badges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    badge_code = Column(String(50), nullable=False)
+    achieved_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "badge_code", name="uq_user_badge"),
+    )
+
+    user = relationship("User")
+
+
+class ClassCompletionRecord(Base):
+    """初心者教室修了記録（第三弾拡張④）。
+    第四弾では「初心者教室を修了し、一般ボウラーとして利用可能になった」という
+    事実のみを管理する。出席回数・各回の指導内容・適性評価は持たない。
+    external_course_idは第三弾ClassCourse.course_idの参照値であり、
+    別データベースのためFKではない。"""
+
+    __tablename__ = "class_completion_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    external_course_id = Column(Integer, nullable=False)
+    completed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    recorded_by_staff_id = Column(Integer, ForeignKey("staffs.staff_id"), nullable=False)
+
+    user = relationship("User")
