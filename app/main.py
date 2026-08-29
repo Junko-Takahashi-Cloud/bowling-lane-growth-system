@@ -63,59 +63,18 @@ app.include_router(lanes.router)
 app.include_router(badges.router)
 
 
-def _auto_assign_lane(db: Session) -> int:
-    """空いている(available かつ アクティブセッションなし)レーンを、番号が若い順に自動選出する。
-    LaneSettings.total_lanesの範囲でLaneレコードが不足していれば自動生成してから選ぶ
-    (6レーンへの増設等、設定変更だけで対応できるようにするため)。"""
-    settings = db.query(LaneSettings).first()
-    if settings is None:
-        settings = LaneSettings(total_lanes=4)
-        db.add(settings)
-        db.commit()
-        db.refresh(settings)
-
-    existing_numbers = {lane.lane_number for lane in db.query(Lane).all()}
-    for n in range(1, settings.total_lanes + 1):
-        if n not in existing_numbers:
-            db.add(Lane(lane_number=n, status="available", purpose="general"))
-    db.commit()
-
-    active_lane_numbers = {
-        s.lane_number for s in db.query(BowlingSession).filter(BowlingSession.status == "active").all()
-    }
-
-    candidates = (
-        db.query(Lane)
-        .filter(Lane.status == "available")
-        .order_by(Lane.lane_number)
-        .all()
-    )
-    for lane in candidates:
-        if lane.lane_number not in active_lane_numbers:
-            return lane.lane_number
-
-    raise HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail="現在、利用可能な空きレーンがありません。",
-    )
-
-
 @app.post("/api/v1/checkin")
 def create_checkin(
-    lane_number: Optional[int] = Form(None),
+    lane_number: int = Form(...),
     member_code: Optional[str] = Form(None),
     guest_name: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_staff: Staff = Depends(get_current_staff),  # 本物のスタッフ認証に接続済み
 ):
     """受付チェックイン（会員検索・警告表示・スタッフID記録・重複チェックイン防止）。
-    lane_numberを省略した場合、空いているレーンをシステムが自動選出する（第三弾拡張③）。
-    明示的にlane_numberを指定した場合は、これまで通りその番号を使う。"""
-
-    auto_assigned = False
-    if lane_number is None:
-        lane_number = _auto_assign_lane(db)
-        auto_assigned = True
+    lane_numberはスタッフが当日のレーン状況（GET /api/v1/lanes）を見て指定する運用とし、
+    自動選出は行わない（4レーン運用ではスタッフが目視で十分判断できるため。将来レーン数が
+    大幅に増えた場合の拡張候補として、この判断はいつでも見直せる）。"""
 
     # 同一レーンにすでにアクティブなセッションがないか確認（夜間CSV照合の一意性を担保）
     existing = (
@@ -161,7 +120,6 @@ def create_checkin(
         "warning": warning_message,
         "session_id": session.id,
         "lane_number": lane_number,
-        "lane_auto_assigned": auto_assigned,
         "player_name": player_name,
         "processed_by_staff": current_staff.name,
     }

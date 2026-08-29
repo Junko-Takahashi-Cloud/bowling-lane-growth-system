@@ -54,18 +54,16 @@
 
 ---
 
-## 第三弾拡張③：レーンアサイン自動化 × 達成バッジ・称号
+## 第三弾拡張③：レーン設定・状態管理 × 達成バッジ・称号
 
 ### ● レーン設定・レーン状態管理（LaneSettings / Lane）
 - 総レーン数（total_lanes）を設定値として管理（初期値4）  
 - admin が total_lanes を変更すると不足レーン番号を自動生成  
 - レーン状態：`available` / `maintenance` / `broken`  
-- レーン用途：`general` / `class` / `competitor`
-
-### ● レーン自動アサイン（チェックイン時）
-- `lane_number` を省略すると自動アサイン  
-- 利用可能かつアクティブセッションのないレーンを番号順に選択  
-- 明示的なレーン番号指定も後方互換として維持
+- レーン用途：`general` / `class` / `competitor`  
+- チェックイン時のレーン番号は、スタッフが `GET /api/v1/lanes` で当日の空き状況を確認し、
+  手動で指定する運用（4レーン運用ではスタッフが目視で十分判断できるため、自動アサインは
+  現時点では採用していない。将来レーン数が大幅に増えた場合の拡張候補）
 
 ### ● 達成バッジ（AchievementBadge）
 - 判定ロジックは `app/services/badge_criteria.py` に分離  
@@ -84,10 +82,8 @@
 - POST `/api/v1/badges/evaluate/{user_id}`  
 - GET `/api/v1/badges/user/{user_id}`
 
-### ● チェックイン仕様変更
-- `lane_number` を必須 → 任意に変更  
-- 自動アサイン対応  
-- 後方互換維持
+### ● チェックイン仕様
+- `lane_number` は引き続き必須（スタッフが手動指定）  
 
 ---
 
@@ -119,7 +115,7 @@
 
 - FastAPI / SQLAlchemy / SQLite  
 - JWT 認証（スタッフ用・会員用を型で分離）  
-- pytest + FastAPI TestClient による E2E テスト（70件）
+- pytest + FastAPI TestClient による E2E テスト（53件）
 
 ---
 
