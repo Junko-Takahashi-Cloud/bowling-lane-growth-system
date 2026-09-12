@@ -11,6 +11,10 @@ from app.schemas import (
 )
 from app.utils.staff_auth import get_current_staff
 from app.utils.user_auth import get_current_user
+from app.services.maintenance_client import request_gear_maintenance
+from app.utils.api_key_auth import verify_maintenance_api_key
+from app.models import MaintenanceLog
+from app.schemas import MaintenanceCompleteIn
 
 router = APIRouter(prefix="/api/v1/gears", tags=["gears"])
 
@@ -148,3 +152,38 @@ def update_maintenance_reminder(
         snoozed_stage=gear.maintenance_reminder_snoozed_stage,
         message=message,
     )
+
+@router.post("/{gear_id}/maintenance/request", status_code=status.HTTP_202_ACCEPTED)
+def request_maintenance(
+    gear_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """会員がオイル抜き等の整備を依頼する。拡張①へ未対応ログを作成する。"""
+    gear = db.query(Gear).filter(Gear.id == gear_id).first()
+    if not gear or gear.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="ギアが見つかりません")
+    request_gear_maintenance(gear.id, gear.name)
+    return {"message": "整備依頼を送信しました"}
+
+
+@router.post("/{gear_id}/maintenance/complete", status_code=status.HTTP_201_CREATED)
+def complete_maintenance_callback(
+    gear_id: int,
+    payload: MaintenanceCompleteIn,
+    db: Session = Depends(get_db),
+    _: None = Depends(verify_maintenance_api_key),
+):
+    """拡張①からの完了コールバック専用。会員認証は不要(API Key認証)"""
+    gear = db.query(Gear).filter(Gear.id == gear_id).first()
+    if not gear:
+        raise HTTPException(status_code=404, detail="ギアが見つかりません")
+    log = MaintenanceLog(
+        gear_id=gear.id,
+        action_type=payload.action_type,
+        games_at_maintenance=gear.total_games,
+        note=payload.note,
+    )
+    db.add(log)
+    db.commit()
+    return {"message": "整備記録を登録しました"}

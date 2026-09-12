@@ -251,3 +251,8 @@ class ClassCompletionOut(BaseModel):
     external_course_id: int
     completed_at: datetime
     recorded_by_staff_id: int
+
+
+class MaintenanceCompleteIn(BaseModel):
+    action_type: str
+    note: Optional[str] = None
